@@ -48,17 +48,96 @@ func (p *Parser) varDeclaration() Stmt {
 	return NewVariableStmt(name, expr)
 }
 
-//statement      → exprStmt | printStmt | block
+//statement      → exprStmt | forStmt | ifStmt | printStmt | whileStmt | block
 func (p *Parser) statement() Stmt {
+
+	if p.match(FOR) {
+		return p.forStatement()
+	}
+	if p.match(IF) {
+		return p.ifStatement()
+	}
 	if p.match(PRINT) {
 		return p.printStatement()
 	}
 
+	if p.match(WHILE) {
+		return p.whileStatement()
+	}
 	if p.match(LeftBrace) {
 		return p.block()
 	}
 
 	return p.expressionStatement()
+}
+
+//whileStmt      → "while" "(" expression ")" statement ;
+func (p *Parser) whileStatement() Stmt {
+	p.consume(LeftParen, "Expected '(' after 'while'.)")
+	condition := p.expression()
+	p.consume(RightParen, "Expected ')' after 'while' condition.)")
+	return NewWhileStmt(condition, p.statement())
+}
+
+//forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+//                 expression? ";"
+//                 expression? ")" statement ;
+func (p *Parser) forStatement() Stmt {
+	p.consume(LeftParen, "Expected '(' after 'for'.")
+	var initializer Stmt
+	if p.match(SEMICOLON) {
+		initializer = nil
+	} else if p.match(VAR) {
+		initializer = p.varDeclaration()
+	} else {
+		initializer = p.expressionStatement()
+	}
+
+	var condition Expr
+	if !p.check(SEMICOLON) {
+		condition = p.expression()
+	}
+
+	p.consume(SEMICOLON, "Expect ';' after loop condition.")
+
+	var increment Expr
+	if !p.check(RightParen) {
+		increment = p.expression()
+	}
+	p.consume(RightParen, "Expect ')' after for clauses.")
+	body := p.statement()
+
+	//desugar to while loop
+	if increment != nil {
+		body = NewBlockStmt([]Stmt{body, NewExprStmt(increment)})
+	}
+
+	if condition == nil {
+		condition = NewLiteralExpr(true)
+	}
+
+	body = NewWhileStmt(condition, body)
+
+	if initializer != nil {
+		body = NewBlockStmt([]Stmt{initializer, body})
+	}
+
+	return body
+}
+
+//ifStmt         → "if" "(" expression ")" statement ( "else" statement )? ;
+func (p *Parser) ifStatement() Stmt {
+	p.consume(LeftParen, "Expected '(' after 'if'.")
+	condition := p.expression()
+	p.consume(RightParen, "Expected ')' after if condition.")
+	thenBranch := p.statement()
+	var elseBranch Stmt
+
+	if p.match(ELSE) {
+		elseBranch = p.statement()
+	}
+
+	return NewIfStmt(condition, thenBranch, elseBranch)
 }
 
 //block          → "{" declaration* "}" ;
@@ -89,9 +168,10 @@ func (p *Parser) expression() Expr {
 	return p.assignment()
 }
 
-//assignment     → IDENTIFIER "=" assignment | equality ;
+//assignment     → IDENTIFIER "=" assignment | logic_or ;
 func (p *Parser) assignment() Expr {
-	expr := p.equality()
+
+	expr := p.or()
 
 	if p.match(EQUAL) {
 		equals := p.previous()
@@ -104,6 +184,30 @@ func (p *Parser) assignment() Expr {
 		}
 
 		p.error(equals, "Invalid assignment target.")
+	}
+	return expr
+}
+
+//logic_or       → logic_and ( "or" logic_and )* ;
+func (p *Parser) or() Expr {
+	expr := p.and()
+
+	for p.match(OR) {
+		operator := p.previous()
+		right := p.and()
+		expr = NewLogicalExpr(expr, operator, right)
+	}
+	return expr
+}
+
+//logic_and      → equality ( "and" equality )* ;
+func (p *Parser) and() Expr {
+	expr := p.equality()
+
+	for p.match(AND) {
+		operator := p.previous()
+		right := p.equality()
+		expr = NewLogicalExpr(expr, operator, right)
 	}
 	return expr
 }

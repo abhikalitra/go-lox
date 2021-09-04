@@ -170,3 +170,36 @@ func (i *Interpreter) executeBlock(statements []Stmt, env *LoxEnvironment) {
 	}
 	i.env = prev
 }
+
+func (i *Interpreter) VisitIfStmt(ifstmt *IfStmt) interface{} {
+	if i.isTrue(i.evaluate(ifstmt.condition)) {
+		i.execute(ifstmt.thenBranch)
+	} else if ifstmt.elseBranch != nil {
+		i.execute(ifstmt.elseBranch)
+	}
+	return nil
+}
+
+func (i *Interpreter) VisitLogicalExpr(e *LogicalExpr) interface{} {
+	left := i.evaluate(e.left)
+
+	switch e.operator.TokenType {
+	case OR:
+		if i.isTrue(left) {
+			return left
+		}
+	case AND:
+		if !i.isTrue(left) {
+			return left
+		}
+	}
+
+	return i.evaluate(e.right)
+}
+
+func (i *Interpreter) VisitWhileStmt(w *WhileStmt) interface{} {
+	for i.isTrue(i.evaluate(w.condition)) {
+		i.execute(w.body)
+	}
+	return nil
+}

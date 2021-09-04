@@ -10,32 +10,9 @@ type BinaryExpr struct {
 	right    Expr
 }
 
-func NewBinaryExpr(left Expr, operator Token, right Expr) Expr {
-	return BinaryExpr{
-		left:     left,
-		operator: operator,
-		right:    right,
-	}
-}
-
-func (e BinaryExpr) Accept(p Visitor) interface{} {
-	return p.VisitBinaryExpr(&e)
-}
-
 type AssignExpr struct {
 	name  Token
 	value Expr
-}
-
-func NewAssignExpr(name Token, value Expr) Expr {
-	return &AssignExpr{
-		name:  name,
-		value: value,
-	}
-}
-
-func (b *AssignExpr) Accept(v Visitor) interface{} {
-	return v.VisitAssignExpr(b)
 }
 
 type CallExpr struct {
@@ -44,56 +21,17 @@ type CallExpr struct {
 	arguments []Expr
 }
 
-func NewCallExpr(callee Expr, paren Token, arguments []Expr) Expr {
-	return CallExpr{
-		callee:    callee,
-		paren:     paren,
-		arguments: arguments,
-	}
-}
-
-func (b CallExpr) Accept(p Visitor) interface{} {
-	return "TODO"
-}
-
 type GetExpr struct {
 	object Expr
 	name   Token
-}
-
-func NewGetExpr(object Expr, name Token) Expr {
-	return GetExpr{
-		object: object,
-		name:   name,
-	}
-}
-
-func (b GetExpr) Accept(p Visitor) interface{} {
-	return "TODO"
 }
 
 type GroupExpr struct {
 	expression Expr
 }
 
-func NewGroupExpr(expression Expr) Expr {
-	return GroupExpr{expression: expression}
-}
-
-func (b GroupExpr) Accept(p Visitor) interface{} {
-	return p.VisitGroupExpr(&b)
-}
-
 type LiteralExpr struct {
 	value interface{}
-}
-
-func NewLiteralExpr(value interface{}) Expr {
-	return LiteralExpr{value: value}
-}
-
-func (e LiteralExpr) Accept(p Visitor) interface{} {
-	return p.VisitLiteralExpr(&e)
 }
 
 type VariableExpr struct {
@@ -126,6 +64,40 @@ type UnaryExpr struct {
 	right    Expr
 }
 
+func NewCallExpr(callee Expr, paren Token, arguments []Expr) Expr {
+	return &CallExpr{
+		callee:    callee,
+		paren:     paren,
+		arguments: arguments,
+	}
+}
+
+func NewGetExpr(object Expr, name Token) Expr {
+	return &GetExpr{
+		object: object,
+		name:   name,
+	}
+}
+
+func NewGroupExpr(expression Expr) Expr {
+	return &GroupExpr{expression: expression}
+}
+
+func NewBinaryExpr(left Expr, operator Token, right Expr) Expr {
+	return &BinaryExpr{
+		left:     left,
+		operator: operator,
+		right:    right,
+	}
+}
+
+func NewAssignExpr(name Token, value Expr) Expr {
+	return &AssignExpr{
+		name:  name,
+		value: value,
+	}
+}
+
 func NewUnaryExpr(operator Token, right Expr) Expr {
 	return &UnaryExpr{
 		operator: operator,
@@ -133,14 +105,53 @@ func NewUnaryExpr(operator Token, right Expr) Expr {
 	}
 }
 
+func NewLiteralExpr(value interface{}) Expr {
+	return &LiteralExpr{value: value}
+}
+
 func NewVariableExpr(name Token) Expr {
 	return &VariableExpr{name: name}
 }
 
+func NewLogicalExpr(left Expr, operator Token, right Expr) Expr {
+	return &LogicalExpr{
+		left:     left,
+		operator: operator,
+		right:    right,
+	}
+}
 func (e *UnaryExpr) Accept(p Visitor) interface{} {
 	return p.VisitUnaryExpr(e)
 }
 
 func (e *VariableExpr) Accept(p Visitor) interface{} {
 	return p.VisitVariableExpr(e)
+}
+
+func (e *BinaryExpr) Accept(p Visitor) interface{} {
+	return p.VisitBinaryExpr(e)
+}
+
+func (b *AssignExpr) Accept(v Visitor) interface{} {
+	return v.VisitAssignExpr(b)
+}
+
+func (e *LiteralExpr) Accept(p Visitor) interface{} {
+	return p.VisitLiteralExpr(e)
+}
+
+func (b *GroupExpr) Accept(p Visitor) interface{} {
+	return p.VisitGroupExpr(b)
+}
+
+func (l *LogicalExpr) Accept(p Visitor) interface{} {
+	return p.VisitLogicalExpr(l)
+}
+
+func (b *CallExpr) Accept(p Visitor) interface{} {
+	panic("not implemented")
+}
+
+func (b *GetExpr) Accept(p Visitor) interface{} {
+	panic("not implemented")
 }

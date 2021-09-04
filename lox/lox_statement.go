@@ -54,6 +54,21 @@ type ClassStmt struct {
 	methods    []FunctionStmt
 }
 
+func NewIfStmt(condition Expr, thenBranch Stmt, elseBranch Stmt) Stmt {
+	return &IfStmt{
+		condition:  condition,
+		thenBranch: thenBranch,
+		elseBranch: elseBranch,
+	}
+}
+
+func NewWhileStmt(condition Expr, statement Stmt) Stmt {
+	return &WhileStmt{
+		condition: condition,
+		body:      statement,
+	}
+}
+
 func NewBlockStmt(statements []Stmt) Stmt {
 	return &BlockStmt{statements: statements}
 }
@@ -88,4 +103,12 @@ func (e *ExprStmt) Accept(p Visitor) interface{} {
 
 func (b *BlockStmt) Accept(v Visitor) interface{} {
 	return v.VisitBlockStmt(b)
+}
+
+func (i *IfStmt) Accept(p Visitor) interface{} {
+	return p.VisitIfStmt(i)
+}
+
+func (w *WhileStmt) Accept(p Visitor) interface{} {
+	return p.VisitWhileStmt(w)
 }
