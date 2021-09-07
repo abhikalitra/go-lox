@@ -245,7 +245,7 @@ func (i *Interpreter) VisitCallExpr(c *CallExpr) interface{} {
 }
 
 func (i *Interpreter) VisitFunctionStmt(f *FunctionStmt) interface{} {
-	fn := NewLoxFunction(f, i.globals)
+	fn := NewLoxFunction(f, i.globals, false)
 	i.globals.Define(f.name.Lexeme, fn)
 	return nil
 }
@@ -278,4 +278,46 @@ func (i *Interpreter) lookupVariable(name Token, e Expr) interface{} {
 		varr, _ := i.globals.Get(name.Lexeme)
 		return varr
 	}
+}
+
+func (i *Interpreter) VisitClassStmt(c *ClassStmt) interface{} {
+	i.env.Define(c.name.Lexeme, nil)
+
+	var methods map[string]LoxCallable
+	for _, method := range c.methods {
+		function := NewLoxFunction(method.(*FunctionStmt), i.env, method.(*FunctionStmt).name.Lexeme == "init")
+		methods[method.(*FunctionStmt).name.Lexeme] = function
+	}
+	class := NewLoxClass(c.name.Lexeme, methods)
+	i.env.Assign(c.name.Lexeme, class)
+	return nil
+}
+
+func (i *Interpreter) VisitGetExpr(g *GetExpr) interface{} {
+	object := i.evaluate(g.object)
+	instance, ok := object.(LoxInstance)
+
+	if ok {
+		instance.Get(g.name.Lexeme)
+	} else {
+		i.error(g.name.Lexeme + ":Only instances have properties.")
+	}
+	return nil
+}
+
+func (i *Interpreter) VisitSetExpr(s *SetExpr) interface{} {
+	object := i.evaluate(s.object)
+	instance, ok := object.(LoxInstance)
+
+	if ok {
+		value := i.evaluate(s.value)
+		instance.Set(s.name.Lexeme, value)
+	} else {
+		i.error(s.name.Lexeme + ":Only instances have properties.")
+	}
+	return nil
+}
+
+func (i *Interpreter) VisitThisExpr(t *ThisExpr) interface{} {
+	return i.lookupVariable(t.keyword, t)
 }

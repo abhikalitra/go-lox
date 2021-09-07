@@ -5,10 +5,18 @@ import (
 )
 
 type FunctionType int
+type ClassType int
 
 const (
 	NONE FunctionType = iota
 	FUNCTION
+	INITIALIZER
+	METHOD
+)
+
+const (
+	CNONE ClassType = iota
+	CCLASS
 )
 
 type Scope struct {
@@ -37,10 +45,11 @@ type LoxResolver struct {
 	i               *Interpreter
 	scopes          []*Scope
 	currentFunction FunctionType
+	currentClass    ClassType
 }
 
 func NewResolver(i *Interpreter) *LoxResolver {
-	return &LoxResolver{i: i, currentFunction: NONE}
+	return &LoxResolver{i: i, currentFunction: NONE, currentClass: CNONE}
 }
 
 func (l *LoxResolver) VisitBlockStmt(b *BlockStmt) interface{} {
@@ -112,6 +121,9 @@ func (l *LoxResolver) VisitReturnStmt(r *ReturnStmt) interface{} {
 	}
 
 	if r.value != nil {
+		if l.currentFunction == INITIALIZER {
+			l.error(r.keyword, "Can't return a value from an initializer.")
+		}
 		l.resolveExpr(r.value)
 	}
 	return nil
@@ -234,4 +246,47 @@ func (l *LoxResolver) resolveFunction(f *FunctionStmt, ftype FunctionType) {
 
 func (l *LoxResolver) Resolve(statements []Stmt) {
 	l.resolveStatements(statements)
+}
+
+func (l *LoxResolver) VisitClassStmt(c *ClassStmt) interface{} {
+	enclosingClass := l.currentClass
+	l.currentClass = CCLASS
+	l.declare(c.name)
+	l.define(c.name)
+
+	l.beginScope()
+	n := len(l.scopes) - 1
+	scope := l.scopes[n]
+	scope.put("this", true)
+
+	for _, method := range c.methods {
+		declaration := METHOD
+		if method.(*FunctionStmt).name.Lexeme == "init" {
+			declaration = INITIALIZER
+		}
+		l.resolveFunction(method.(*FunctionStmt), declaration)
+	}
+
+	l.endScope()
+	l.currentClass = enclosingClass
+	return nil
+}
+
+func (l *LoxResolver) VisitGetExpr(g *GetExpr) interface{} {
+	l.resolveExpr(g.object)
+	return nil
+}
+
+func (l *LoxResolver) VisitSetExpr(s *SetExpr) interface{} {
+	l.resolveExpr(s.object)
+	l.resolveExpr(s.value)
+	return nil
+}
+
+func (l *LoxResolver) VisitThisExpr(e *ThisExpr) interface{} {
+	if l.currentClass == CNONE {
+		l.error(e.keyword, "Can't use 'this' outside of a class.")
+	}
+	l.resolveLocal(e, e.keyword)
+	return nil
 }

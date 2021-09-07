@@ -1,20 +1,18 @@
 package lox
 
-type LoxVariable struct {
-}
-
 type LoxCallable interface {
 	Arity() int
 	Call(i *Interpreter, arguments ...interface{}) interface{}
 }
 
 type LoxFunction struct {
-	declaration *FunctionStmt
-	closure     *LoxEnvironment
+	isInitializer bool
+	declaration   *FunctionStmt
+	closure       *LoxEnvironment
 }
 
-func NewLoxFunction(declaration *FunctionStmt, closure *LoxEnvironment) LoxCallable {
-	return &LoxFunction{declaration: declaration, closure: closure}
+func NewLoxFunction(declaration *FunctionStmt, closure *LoxEnvironment, isInitializer bool) LoxCallable {
+	return &LoxFunction{declaration: declaration, closure: closure, isInitializer: isInitializer}
 }
 
 func (fn *LoxFunction) Arity() int {
@@ -27,5 +25,15 @@ func (fn *LoxFunction) Call(i *Interpreter, arguments ...interface{}) interface{
 		fnenv.Define(param.Lexeme, arguments[idx])
 	}
 	i.executeBlock(fn.declaration.body, fnenv)
+	if fn.isInitializer {
+		result, _ := fn.closure.GetAt(0, "this")
+		return result
+	}
 	return nil
+}
+
+func (fn *LoxFunction) bind(i *LoxInstance) LoxCallable {
+	env := NewLoxEnvironmentWithParent(fn.closure)
+	env.Define("this", i)
+	return NewLoxFunction(fn.declaration, env, fn.isInitializer)
 }

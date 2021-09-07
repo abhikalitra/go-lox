@@ -25,8 +25,12 @@ func (p *Parser) Parse() []Stmt {
 	return statements
 }
 
-//declaration    → funDecl | varDecl | statement
+//declaration    → classDecl | funDecl | varDecl | statement
 func (p *Parser) declaration() Stmt {
+
+	if p.match(CLASS) {
+		return p.classDeclaration()
+	}
 
 	if p.match(FUN) {
 		return p.function("function")
@@ -37,6 +41,18 @@ func (p *Parser) declaration() Stmt {
 	return p.statement()
 	//TODO implement error handling and return error
 	//synchronise it here if something goes wrong
+}
+
+//classDecl      → "class" IDENTIFIER "{" function* "}" ;
+func (p *Parser) classDeclaration() Stmt {
+	name := p.consume(IDENTIFIER, "Expected class name")
+	p.consume(LeftBrace, "Expected '{' before class body.")
+	var methods []Stmt
+	for !p.check(RightBrace) && !p.isAtEnd() {
+		methods = append(methods, p.function("method"))
+	}
+	p.consume(RightBrace, "Expect '}' after class body.")
+	return NewClassStmt(name, methods)
 }
 
 //funDecl        → "fun" function ;
@@ -213,7 +229,7 @@ func (p *Parser) expression() Expr {
 	return p.assignment()
 }
 
-//assignment     → IDENTIFIER "=" assignment | logic_or ;
+//assignment     → ( call "." )? IDENTIFIER "=" assignment | logic_or ;
 func (p *Parser) assignment() Expr {
 
 	expr := p.or()
@@ -226,6 +242,12 @@ func (p *Parser) assignment() Expr {
 
 		if ok {
 			return NewAssignExpr(valexpr.name, value)
+		}
+
+		getexpr, ok := expr.(*GetExpr)
+
+		if ok {
+			return NewSetExpr(getexpr.object, getexpr.name, value)
 		}
 
 		p.error(equals, "Invalid assignment target.")
@@ -313,12 +335,15 @@ func (p *Parser) unary() Expr {
 	return p.call()
 }
 
-//call           → primary ( "(" arguments? ")" )* ;
+//call           → primary ( "(" arguments? ")"  | "." IDENTIFIER )* ;
 func (p *Parser) call() Expr {
 	expr := p.primary()
 	for {
 		if p.match(LeftParen) {
 			expr = p.finishCall(expr)
+		} else if p.match(DOT) {
+			name := p.consume(IDENTIFIER, "Expect property name after '.'.")
+			expr = NewGetExpr(expr, name)
 		} else {
 			break
 		}
@@ -346,7 +371,7 @@ func (p *Parser) finishCall(callee Expr) Expr {
 
 //arguments      → expression ( "," expression )* ;
 
-//primary        →  "true" | "false" | "nil" | NUMBER | STRING | "(" expression ") | IDENTIFIER" ;
+//primary        →  "true" | "false" | "nil" | NUMBER | STRING | "this" | "(" expression ") | IDENTIFIER" ;
 func (p *Parser) primary() Expr {
 
 	if p.match(TRUE) {
@@ -363,6 +388,10 @@ func (p *Parser) primary() Expr {
 
 	if p.match(NUMBER, STRING) {
 		return NewLiteralExpr(p.previous().Literal)
+	}
+
+	if p.match(THIS) {
+		return NewThisExpr(p.previous())
 	}
 
 	if p.match(IDENTIFIER) {

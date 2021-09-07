@@ -9,6 +9,8 @@ type Visitor interface {
 	VisitVariableExpr(e *VariableExpr) interface{}
 	VisitAssignExpr(b *AssignExpr) interface{}
 	VisitCallExpr(c *CallExpr) interface{}
+	VisitGetExpr(g *GetExpr) interface{}
+	VisitThisExpr(t *ThisExpr) interface{}
 	VisitIfStmt(i *IfStmt) interface{}
 	VisitBlockStmt(b *BlockStmt) interface{}
 	VisitVariableStmt(s *VariableStmt) interface{}
@@ -17,4 +19,6 @@ type Visitor interface {
 	VisitReturnStmt(r *ReturnStmt) interface{}
 	VisitExprStmt(e *ExprStmt) interface{}
 	VisitPrintStmt(p *PrintStmt) interface{}
+	VisitClassStmt(c *ClassStmt) interface{}
+	VisitSetExpr(s *SetExpr) interface{}
 }

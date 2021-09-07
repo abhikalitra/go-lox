@@ -49,7 +49,7 @@ type BlockStmt struct {
 type ClassStmt struct {
 	name       Token
 	superclass VariableStmt
-	methods    []FunctionStmt
+	methods    []Stmt
 }
 
 func NewIfStmt(condition Expr, thenBranch Stmt, elseBranch Stmt) Stmt {
@@ -98,6 +98,14 @@ func NewReturnStmt(keyword Token, value Expr) Stmt {
 	}
 }
 
+func NewClassStmt(name Token, methods []Stmt) Stmt {
+	return &ClassStmt{
+		name: name,
+		//superclass: superclass,
+		methods: methods,
+	}
+}
+
 func (p *PrintStmt) Accept(v Visitor) interface{} {
 	v.VisitPrintStmt(p)
 	return nil
@@ -117,18 +125,22 @@ func (b *BlockStmt) Accept(v Visitor) interface{} {
 	return v.VisitBlockStmt(b)
 }
 
-func (i *IfStmt) Accept(p Visitor) interface{} {
-	return p.VisitIfStmt(i)
+func (i *IfStmt) Accept(v Visitor) interface{} {
+	return v.VisitIfStmt(i)
 }
 
-func (w *WhileStmt) Accept(p Visitor) interface{} {
-	return p.VisitWhileStmt(w)
+func (w *WhileStmt) Accept(v Visitor) interface{} {
+	return v.VisitWhileStmt(w)
 }
 
-func (f *FunctionStmt) Accept(p Visitor) interface{} {
-	return p.VisitFunctionStmt(f)
+func (f *FunctionStmt) Accept(v Visitor) interface{} {
+	return v.VisitFunctionStmt(f)
 }
 
-func (r *ReturnStmt) Accept(p Visitor) interface{} {
-	return p.VisitReturnStmt(r)
+func (r *ReturnStmt) Accept(v Visitor) interface{} {
+	return v.VisitReturnStmt(r)
+}
+
+func (c *ClassStmt) Accept(v Visitor) interface{} {
+	return v.VisitClassStmt(c)
 }

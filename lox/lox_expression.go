@@ -120,6 +120,19 @@ func NewLogicalExpr(left Expr, operator Token, right Expr) Expr {
 		right:    right,
 	}
 }
+
+func NewSetExpr(object Expr, name Token, value Expr) Expr {
+	return &SetExpr{
+		object: object,
+		name:   name,
+		value:  value,
+	}
+}
+
+func NewThisExpr(keyword Token) Expr {
+	return &ThisExpr{keyword: keyword}
+}
+
 func (e *UnaryExpr) Accept(p Visitor) interface{} {
 	return p.VisitUnaryExpr(e)
 }
@@ -148,10 +161,18 @@ func (l *LogicalExpr) Accept(p Visitor) interface{} {
 	return p.VisitLogicalExpr(l)
 }
 
-func (b *CallExpr) Accept(p Visitor) interface{} {
-	panic("not implemented")
+func (b *GetExpr) Accept(p Visitor) interface{} {
+	return p.VisitGetExpr(b)
 }
 
-func (b *GetExpr) Accept(p Visitor) interface{} {
+func (s *SetExpr) Accept(p Visitor) interface{} {
+	return p.VisitSetExpr(s)
+}
+
+func (t *ThisExpr) Accept(p Visitor) interface{} {
+	return p.VisitThisExpr(t)
+}
+
+func (b *CallExpr) Accept(p Visitor) interface{} {
 	panic("not implemented")
 }
