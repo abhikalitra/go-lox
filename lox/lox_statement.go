@@ -1,7 +1,5 @@
 package lox
 
-import "fmt"
-
 type Stmt interface {
 	Accept(p Visitor) interface{}
 }
@@ -85,9 +83,23 @@ func NewExprStmt(expr Expr) Stmt {
 	return &ExprStmt{expression: expr}
 }
 
+func NewFunctionStmt(name Token, params []Token, body []Stmt) Stmt {
+	return &FunctionStmt{
+		name:   name,
+		params: params,
+		body:   body,
+	}
+}
+
+func NewReturnStmt(keyword Token, value Expr) Stmt {
+	return &ReturnStmt{
+		keyword: keyword,
+		value:   value,
+	}
+}
+
 func (p *PrintStmt) Accept(v Visitor) interface{} {
-	result := p.expression.Accept(v)
-	fmt.Printf("%v", result)
+	v.VisitPrintStmt(p)
 	return nil
 }
 
@@ -96,8 +108,8 @@ func (s *VariableStmt) Accept(v Visitor) interface{} {
 	return nil
 }
 
-func (e *ExprStmt) Accept(p Visitor) interface{} {
-	e.expression.Accept(p)
+func (e *ExprStmt) Accept(v Visitor) interface{} {
+	v.VisitExprStmt(e)
 	return nil
 }
 
@@ -111,4 +123,12 @@ func (i *IfStmt) Accept(p Visitor) interface{} {
 
 func (w *WhileStmt) Accept(p Visitor) interface{} {
 	return p.VisitWhileStmt(w)
+}
+
+func (f *FunctionStmt) Accept(p Visitor) interface{} {
+	return p.VisitFunctionStmt(f)
+}
+
+func (r *ReturnStmt) Accept(p Visitor) interface{} {
+	return p.VisitReturnStmt(r)
 }

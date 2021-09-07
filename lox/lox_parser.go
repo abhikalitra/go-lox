@@ -25,8 +25,12 @@ func (p *Parser) Parse() []Stmt {
 	return statements
 }
 
-//declaration    → varDecl | statement
+//declaration    → funDecl | varDecl | statement
 func (p *Parser) declaration() Stmt {
+
+	if p.match(FUN) {
+		return p.function("function")
+	}
 	if p.match(VAR) {
 		return p.varDeclaration()
 	}
@@ -34,6 +38,34 @@ func (p *Parser) declaration() Stmt {
 	//TODO implement error handling and return error
 	//synchronise it here if something goes wrong
 }
+
+//funDecl        → "fun" function ;
+//function       → IDENTIFIER "(" parameters? ")" block ;
+func (p *Parser) function(kind string) Stmt {
+	name := p.consume(IDENTIFIER, "Expect "+kind+" name.")
+	p.consume(LeftParen, "Expect '(' after "+kind+" name.")
+	var parameters []Token
+
+	if !p.check(RightParen) {
+		for {
+			if len(parameters) > 255 {
+				p.error(p.peek(), "Can't have more than 255 parameters.")
+			}
+			parameters = append(parameters, p.consume(IDENTIFIER, "Expect parameter name."))
+			if !p.match(COMMA) {
+				break
+			}
+		}
+	}
+
+	p.consume(RightParen, "Expect ')' after parameters.")
+	p.consume(LeftBrace, "Expect '{' before "+kind+" body.")
+	body := p.block()
+	return NewFunctionStmt(name, parameters, body)
+
+}
+
+//parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 
 //varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 func (p *Parser) varDeclaration() Stmt {
@@ -48,7 +80,7 @@ func (p *Parser) varDeclaration() Stmt {
 	return NewVariableStmt(name, expr)
 }
 
-//statement      → exprStmt | forStmt | ifStmt | printStmt | whileStmt | block
+//statement      → exprStmt | forStmt | ifStmt | printStmt | returnStmt | whileStmt | block
 func (p *Parser) statement() Stmt {
 
 	if p.match(FOR) {
@@ -60,15 +92,28 @@ func (p *Parser) statement() Stmt {
 	if p.match(PRINT) {
 		return p.printStatement()
 	}
-
+	if p.match(RETURN) {
+		return p.returnStatement()
+	}
 	if p.match(WHILE) {
 		return p.whileStatement()
 	}
 	if p.match(LeftBrace) {
-		return p.block()
+		return NewBlockStmt(p.block())
 	}
 
 	return p.expressionStatement()
+}
+
+//returnStmt     → "return" expression? ";" ;
+func (p *Parser) returnStatement() Stmt {
+	keyword := p.previous()
+	var value Expr
+	if !p.check(SEMICOLON) {
+		value = p.expression()
+	}
+	p.consume(SEMICOLON, "Expected ';' after return value.")
+	return NewReturnStmt(keyword, value)
 }
 
 //whileStmt      → "while" "(" expression ")" statement ;
@@ -141,14 +186,14 @@ func (p *Parser) ifStatement() Stmt {
 }
 
 //block          → "{" declaration* "}" ;
-func (p *Parser) block() Stmt {
+func (p *Parser) block() []Stmt {
 	var statements []Stmt
 	for !p.check(RightBrace) && !p.isAtEnd() {
 		stmt := p.declaration()
 		statements = append(statements, stmt)
 	}
 	p.consume(RightBrace, "Expect '}' after block.")
-	return NewBlockStmt(statements)
+	return statements
 }
 
 func (p *Parser) printStatement() Stmt {
@@ -256,16 +301,50 @@ func (p *Parser) factor() Expr {
 	return expr
 }
 
-//unary          → ( "!" | "-" ) unary | primary ;
+//unary          → ( "!" | "-" ) unary | call ;
 func (p *Parser) unary() Expr {
+
 	if p.match(BANG, MINUS) {
 		operator := p.previous()
 		right := p.unary()
 		return NewUnaryExpr(operator, right)
 	}
 
-	return p.primary()
+	return p.call()
 }
+
+//call           → primary ( "(" arguments? ")" )* ;
+func (p *Parser) call() Expr {
+	expr := p.primary()
+	for {
+		if p.match(LeftParen) {
+			expr = p.finishCall(expr)
+		} else {
+			break
+		}
+	}
+	return expr
+}
+
+func (p *Parser) finishCall(callee Expr) Expr {
+	var arguments []Expr
+
+	if !p.check(RightParen) {
+		for {
+			arguments = append(arguments, p.expression())
+			if len(arguments) >= 255 {
+				p.error(p.peek(), "Can't have more than 255 arguments.")
+			}
+			if !p.match(COMMA) {
+				break
+			}
+		}
+	}
+	paren := p.consume(RightParen, "Expected ')' after arguments.")
+	return NewCallExpr(callee, paren, arguments)
+}
+
+//arguments      → expression ( "," expression )* ;
 
 //primary        →  "true" | "false" | "nil" | NUMBER | STRING | "(" expression ") | IDENTIFIER" ;
 func (p *Parser) primary() Expr {

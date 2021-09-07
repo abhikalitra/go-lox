@@ -1,16 +1,28 @@
 package lox
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 type Interpreter struct {
-	env *LoxEnvironment
+	env     *LoxEnvironment
+	globals *LoxEnvironment
+	locals  map[Expr]int
 }
 
 func NewInterpreter() *Interpreter {
-	return &Interpreter{env: NewLoxEnvironment()}
+	env := NewLoxEnvironment()
+	env.Define("clock", &ClockFunction{})
+
+	i := &Interpreter{globals: NewLoxEnvironment()}
+	return i
 }
 
 func (i *Interpreter) Interpret(statements []Stmt) {
+
+	resolver := NewResolver(i)
+	resolver.Resolve(statements)
 	for _, stmt := range statements {
 		i.execute(stmt)
 	}
@@ -21,7 +33,7 @@ func (i *Interpreter) VisitVariableStmt(s *VariableStmt) interface{} {
 	if s.initializer != nil {
 		value = i.evaluate(s.initializer)
 	}
-	i.env.Define(s.name.Lexeme, value)
+	i.globals.Define(s.name.Lexeme, value)
 	return nil
 }
 
@@ -30,15 +42,13 @@ func (i *Interpreter) VisitExprStmt(e *ExprStmt) interface{} {
 	return nil
 }
 
-func (i *Interpreter) VisitPrintStmt(e *PrintStmt) interface{} {
-	result := i.evaluate(e.expression)
-	fmt.Printf("%v", result)
+func (i *Interpreter) VisitPrintStmt(p *PrintStmt) interface{} {
+	fmt.Printf("%v", i.evaluate(p.expression))
 	return nil
 }
 
 func (i *Interpreter) VisitVariableExpr(e *VariableExpr) interface{} {
-	value, _ := i.env.Get(e.name.Lexeme)
-	return value
+	return i.lookupVariable(e.name, e)
 }
 
 func (i *Interpreter) VisitGroupExpr(e *GroupExpr) interface{} {
@@ -152,23 +162,30 @@ func (i *Interpreter) execute(stmt Stmt) {
 
 //TODO cannot assign to unknown variable!!
 func (i *Interpreter) VisitAssignExpr(e *AssignExpr) interface{} {
+
 	value := i.evaluate(e.value)
-	i.env.Assign(e.name.Lexeme, value)
+	dist, ok := i.locals[e]
+	if ok {
+		i.env.AssignAt(dist, e.name, value)
+	} else {
+		i.globals.Assign(e.name.Lexeme, value)
+	}
+
 	return value
 }
 
 func (i *Interpreter) VisitBlockStmt(b *BlockStmt) interface{} {
-	i.executeBlock(b.statements, NewLoxEnvironmentWithParent(i.env))
+	i.executeBlock(b.statements, NewLoxEnvironmentWithParent(i.globals))
 	return nil
 }
 
 func (i *Interpreter) executeBlock(statements []Stmt, env *LoxEnvironment) {
-	prev := i.env
-	i.env = env
+	prev := i.globals
+	i.globals = env
 	for _, stmt := range statements {
 		i.execute(stmt)
 	}
-	i.env = prev
+	i.globals = prev
 }
 
 func (i *Interpreter) VisitIfStmt(ifstmt *IfStmt) interface{} {
@@ -202,4 +219,63 @@ func (i *Interpreter) VisitWhileStmt(w *WhileStmt) interface{} {
 		i.execute(w.body)
 	}
 	return nil
+}
+
+func (i *Interpreter) VisitCallExpr(c *CallExpr) interface{} {
+	callee := i.evaluate(c.callee)
+
+	var arguments []interface{}
+	for _, arg := range c.arguments {
+		arguments = append(arguments, i.evaluate(arg))
+	}
+
+	//TODO call the function
+	fn, ok := callee.(LoxCallable)
+
+	if !ok {
+		i.error("Can only call functions and classes.")
+	}
+
+	if len(arguments) != fn.Arity() {
+		i.error(fmt.Sprintf("Expected %d but got %d arguments.", fn.Arity, len(arguments)))
+	}
+
+	fn.Call(i, arguments)
+	return nil
+}
+
+func (i *Interpreter) VisitFunctionStmt(f *FunctionStmt) interface{} {
+	fn := NewLoxFunction(f, i.globals)
+	i.globals.Define(f.name.Lexeme, fn)
+	return nil
+}
+
+func (i *Interpreter) error(msg string) {
+	log.Fatal(msg)
+}
+
+func (i *Interpreter) VisitReturnStmt(r *ReturnStmt) interface{} {
+	//var value interface{}
+	//if r.value != nil {
+	//	value = i.evaluate(r.value)
+	//}
+	//TODO we need to escape to call fn somehow
+	//in java its done with throw, dont know how to implement it
+	//cleanly in golang :(
+	return nil
+}
+
+func (i *Interpreter) resolve(e Expr, depth int) {
+	i.locals[e] = depth
+}
+
+func (i *Interpreter) lookupVariable(name Token, e Expr) interface{} {
+	dist, ok := i.locals[e]
+	if ok {
+		varr, _ := i.env.GetAt(dist, name.Lexeme)
+		return varr
+	} else {
+		varr, _ := i.globals.Get(name.Lexeme)
+		return varr
+	}
 }

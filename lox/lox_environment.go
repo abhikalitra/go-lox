@@ -31,6 +31,15 @@ func (e *LoxEnvironment) Get(name string) (interface{}, bool) {
 	return value, ok
 }
 
+func (e *LoxEnvironment) GetAt(dist int, name string) (interface{}, bool) {
+	value, ok := e.values[name]
+
+	if !ok && e.parent != nil {
+		return e.parent.Get(name)
+	}
+	return value, ok
+}
+
 func (e *LoxEnvironment) Assign(name string, value interface{}) {
 	value, ok := e.values[name]
 
@@ -40,4 +49,16 @@ func (e *LoxEnvironment) Assign(name string, value interface{}) {
 		e.values[name] = value
 	}
 
+}
+
+func (e *LoxEnvironment) AssignAt(dist int, name Token, value interface{}) {
+	e.ancestor(dist).values[name.Lexeme] = value
+}
+
+func (e *LoxEnvironment) ancestor(dist int) *LoxEnvironment {
+	env := e
+	for i := 0; i < dist; i++ {
+		env = env.parent
+	}
+	return env
 }
