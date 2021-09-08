@@ -21,4 +21,5 @@ type Visitor interface {
 	VisitPrintStmt(p *PrintStmt) interface{}
 	VisitClassStmt(c *ClassStmt) interface{}
 	VisitSetExpr(s *SetExpr) interface{}
+	VisitSuperExpr(e *SuperExpr) interface{}
 }

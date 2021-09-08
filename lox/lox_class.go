@@ -1,8 +1,9 @@
 package lox
 
 type LoxClass struct {
-	name    string
-	methods map[string]LoxCallable
+	name       string
+	superclass *LoxClass
+	methods    map[string]LoxCallable
 }
 
 type LoxInstance struct {
@@ -39,6 +40,10 @@ func (c *LoxClass) findMethod(name string) interface{} {
 	method, ok := c.methods[name]
 	if ok {
 		return method
+	}
+
+	if c.superclass != nil {
+		return c.superclass.findMethod(name)
 	}
 	return nil
 }

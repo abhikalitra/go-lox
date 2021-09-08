@@ -281,7 +281,20 @@ func (i *Interpreter) lookupVariable(name Token, e Expr) interface{} {
 }
 
 func (i *Interpreter) VisitClassStmt(c *ClassStmt) interface{} {
+
+	if c.superclass != nil {
+		super := i.evaluate(c.superclass)
+		_, ok := super.(*LoxClass)
+		if !ok {
+			i.error(c.superclass.name.Lexeme + "<Superclass must be a class.")
+		}
+	}
 	i.env.Define(c.name.Lexeme, nil)
+
+	if c.superclass != nil {
+		i.env = NewLoxEnvironmentWithParent(i.env)
+		i.env.Define("super", c.superclass)
+	}
 
 	var methods map[string]LoxCallable
 	for _, method := range c.methods {
@@ -289,6 +302,11 @@ func (i *Interpreter) VisitClassStmt(c *ClassStmt) interface{} {
 		methods[method.(*FunctionStmt).name.Lexeme] = function
 	}
 	class := NewLoxClass(c.name.Lexeme, methods)
+
+	if c.superclass != nil {
+		i.env = i.env.parent
+	}
+
 	i.env.Assign(c.name.Lexeme, class)
 	return nil
 }
@@ -320,4 +338,17 @@ func (i *Interpreter) VisitSetExpr(s *SetExpr) interface{} {
 
 func (i *Interpreter) VisitThisExpr(t *ThisExpr) interface{} {
 	return i.lookupVariable(t.keyword, t)
+}
+
+func (i *Interpreter) VisitSuperExpr(s *SuperExpr) interface{} {
+	distance := i.locals[s]
+	superclass, _ := i.env.GetAt(distance, "super")
+	instance, _ := i.env.GetAt(distance-1, "this")
+	method := superclass.(*LoxClass).findMethod(s.method.Lexeme)
+
+	if method == nil {
+		i.error("Undefined property '" + s.method.Lexeme + "'.")
+	}
+
+	return method.(*LoxFunction).bind(instance.(*LoxInstance))
 }

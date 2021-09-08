@@ -17,6 +17,7 @@ const (
 const (
 	CNONE ClassType = iota
 	CCLASS
+	SUBCLASS
 )
 
 type Scope struct {
@@ -254,6 +255,20 @@ func (l *LoxResolver) VisitClassStmt(c *ClassStmt) interface{} {
 	l.declare(c.name)
 	l.define(c.name)
 
+	if c.superclass != nil && c.name.Lexeme == c.superclass.name.Lexeme {
+		l.error(c.superclass.name,
+			"A class can't inherit from itself.")
+	}
+
+	if c.superclass != nil {
+		l.currentClass = SUBCLASS
+		l.beginScope()
+		n := len(l.scopes) - 1
+		scope := l.scopes[n]
+		scope.put("super", true)
+		l.resolveExpr(c.superclass)
+	}
+
 	l.beginScope()
 	n := len(l.scopes) - 1
 	scope := l.scopes[n]
@@ -268,6 +283,9 @@ func (l *LoxResolver) VisitClassStmt(c *ClassStmt) interface{} {
 	}
 
 	l.endScope()
+	if c.superclass != nil {
+		l.endScope()
+	}
 	l.currentClass = enclosingClass
 	return nil
 }
@@ -286,6 +304,18 @@ func (l *LoxResolver) VisitSetExpr(s *SetExpr) interface{} {
 func (l *LoxResolver) VisitThisExpr(e *ThisExpr) interface{} {
 	if l.currentClass == CNONE {
 		l.error(e.keyword, "Can't use 'this' outside of a class.")
+	}
+	l.resolveLocal(e, e.keyword)
+	return nil
+}
+
+func (l *LoxResolver) VisitSuperExpr(e *SuperExpr) interface{} {
+
+	if l.currentClass == CNONE {
+		l.error(e.keyword, "Can't use 'super' outside of a class.")
+	}
+	if l.currentClass != SUBCLASS {
+		l.error(e.keyword, "Can't use 'super' in a class with no superclass.")
 	}
 	l.resolveLocal(e, e.keyword)
 	return nil

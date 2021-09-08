@@ -48,7 +48,7 @@ type BlockStmt struct {
 
 type ClassStmt struct {
 	name       Token
-	superclass VariableStmt
+	superclass *VariableExpr
 	methods    []Stmt
 }
 
@@ -98,11 +98,11 @@ func NewReturnStmt(keyword Token, value Expr) Stmt {
 	}
 }
 
-func NewClassStmt(name Token, methods []Stmt) Stmt {
+func NewClassStmt(name Token, superclass Expr, methods []Stmt) Stmt {
 	return &ClassStmt{
-		name: name,
-		//superclass: superclass,
-		methods: methods,
+		name:       name,
+		superclass: superclass.(*VariableExpr),
+		methods:    methods,
 	}
 }
 

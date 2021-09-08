@@ -43,16 +43,24 @@ func (p *Parser) declaration() Stmt {
 	//synchronise it here if something goes wrong
 }
 
-//classDecl      → "class" IDENTIFIER "{" function* "}" ;
+//classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
 func (p *Parser) classDeclaration() Stmt {
 	name := p.consume(IDENTIFIER, "Expected class name")
+
+	var superclass Expr
+
+	if p.match(LESS) {
+		p.consume(IDENTIFIER, "Expect superclass name.")
+		superclass = NewVariableExpr(p.previous())
+	}
+
 	p.consume(LeftBrace, "Expected '{' before class body.")
 	var methods []Stmt
 	for !p.check(RightBrace) && !p.isAtEnd() {
 		methods = append(methods, p.function("method"))
 	}
 	p.consume(RightBrace, "Expect '}' after class body.")
-	return NewClassStmt(name, methods)
+	return NewClassStmt(name, superclass, methods)
 }
 
 //funDecl        → "fun" function ;
@@ -371,7 +379,7 @@ func (p *Parser) finishCall(callee Expr) Expr {
 
 //arguments      → expression ( "," expression )* ;
 
-//primary        →  "true" | "false" | "nil" | NUMBER | STRING | "this" | "(" expression ") | IDENTIFIER" ;
+//primary        →  "true" | "false" | "nil" | NUMBER | STRING | "this" | IDENTIFIER | "(" expression ") | "super" "." IDENTIFIER ;;
 func (p *Parser) primary() Expr {
 
 	if p.match(TRUE) {
@@ -402,6 +410,13 @@ func (p *Parser) primary() Expr {
 		expr := p.expression()
 		p.consume(RightParen, "Expecting ) after expression")
 		return NewGroupExpr(expr)
+	}
+
+	if p.match(SUPER) {
+		keyword := p.previous()
+		p.consume(DOT, "Expected '.' after 'super'.")
+		method := p.consume(IDENTIFIER, "Expected superclass method name.")
+		return NewSuperExpr(keyword, method)
 	}
 
 	p.error(p.peek(), "Expected expression.")

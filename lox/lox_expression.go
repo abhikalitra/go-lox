@@ -133,6 +133,13 @@ func NewThisExpr(keyword Token) Expr {
 	return &ThisExpr{keyword: keyword}
 }
 
+func NewSuperExpr(keyword Token, method Token) Expr {
+	return &SuperExpr{
+		keyword: keyword,
+		method:  method,
+	}
+}
+
 func (e *UnaryExpr) Accept(p Visitor) interface{} {
 	return p.VisitUnaryExpr(e)
 }
@@ -175,4 +182,8 @@ func (t *ThisExpr) Accept(p Visitor) interface{} {
 
 func (b *CallExpr) Accept(p Visitor) interface{} {
 	panic("not implemented")
+}
+
+func (s SuperExpr) Accept(p Visitor) interface{} {
+	panic("implement me")
 }
