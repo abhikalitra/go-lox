@@ -1,4 +1,4 @@
-package lox
+package lisp
 
 import (
 	"log"
@@ -8,19 +8,18 @@ import (
 type TokenType int
 
 const (
-	LeftParen TokenType = iota
+	Quote TokenType = iota
+	List
+	Eval
+	LeftParen
 	RightParen
-	LeftBrace
-	RightBrace
 	COMMA
-	DOT
 	MINUS
 	PLUS
-	SEMICOLON
 	SLASH
-	STAR
 
 	// One or two character tokens.
+
 	BANG
 	BangEqual
 	EQUAL
@@ -30,27 +29,20 @@ const (
 	LESS
 	LessEqual
 
-	// Literals.
 	IDENTIFIER
 	STRING
 	NUMBER
 
 	// Keywords.
+	OR
 	AND
-	CLASS
+	IF
 	ELSE
+	TRUE
 	FALSE
 	FUN
-	FOR
-	IF
 	NIL
-	OR
-	PRINT
-	RETURN
-	SUPER
-	THIS
-	TRUE
-	VAR
+	FOR
 	WHILE
 
 	EOF
@@ -62,7 +54,6 @@ var keywords map[string]TokenType
 func init() {
 	keywords = make(map[string]TokenType)
 	keywords["and"] = AND
-	keywords["class"] = CLASS
 	keywords["else"] = ELSE
 	keywords["false"] = FALSE
 	keywords["for"] = FOR
@@ -70,13 +61,11 @@ func init() {
 	keywords["if"] = IF
 	keywords["nil"] = NIL
 	keywords["or"] = OR
-	keywords["print"] = PRINT
-	keywords["return"] = RETURN
-	keywords["super"] = SUPER
-	keywords["this"] = THIS
 	keywords["true"] = TRUE
-	keywords["var"] = VAR
 	keywords["while"] = WHILE
+	keywords["quote"] = Quote
+	keywords["list"] = List
+	keywords["eval"] = Eval
 }
 
 type Token struct {
@@ -126,26 +115,18 @@ func (s *Scanner) ScanTokens() {
 func (s *Scanner) scanToken() {
 	c := s.advance()
 	switch c {
+	case '\'':
+		s.addToken(Quote)
 	case '(':
 		s.addToken(LeftParen)
 	case ')':
 		s.addToken(RightParen)
-	case '{':
-		s.addToken(LeftBrace)
-	case '}':
-		s.addToken(RightBrace)
 	case ',':
 		s.addToken(COMMA)
-	case '.':
-		s.addToken(DOT)
 	case '-':
 		s.addToken(MINUS)
 	case '+':
 		s.addToken(PLUS)
-	case ';':
-		s.addToken(SEMICOLON)
-	case '*':
-		s.addToken(STAR)
 	case '!':
 		s.addTokenWithDual(s.match('='), BangEqual, BANG)
 	case '=':
