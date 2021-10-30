@@ -32,6 +32,7 @@ func eval(str string) {
 	fmt.Println()
 }
 
+//https://gigamonkeys.com/book/
 //https://www.cs.unm.edu/~luger/ai-final2/LISP/CH%2011_S-expressions,%20The%20Syntax%20of%20Lisp.pdf
 //symbolic expressions -> atom or list
 
